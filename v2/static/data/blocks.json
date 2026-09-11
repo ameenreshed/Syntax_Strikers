@@ -1,0 +1,33 @@
+{
+  "_readme": "Edit this file to add, remove, or modify campus blocks. Reload the page to see changes. Fields: id (short label like '27' or 'GATE1'), name (full label), zone (must match an id in 'zones'), lat & lng (real coordinates), tags (search keywords).",
+
+  "center": [31.2565, 75.7075],
+  "zoom": 15,
+
+  "zones": [
+    { "id": 1, "name": "Zone 1 — Entrance Cluster",    "color": "#d97706" },
+    { "id": 2, "name": "Zone 2 — Hostel Row",          "color": "#2563eb" },
+    { "id": 3, "name": "Zone 3 — Commerce & LIT Belt", "color": "#16a34a" },
+    { "id": 4, "name": "Zone 4 — Central Academic",    "color": "#9333ea" },
+    { "id": 5, "name": "Zone 5 — Engineering & Admin", "color": "#dc2626" },
+    { "id": 6, "name": "Zone 6 — North Campus",        "color": "#0891b2" }
+  ],
+
+  "places": [
+    { "id": "GATE1", "name": "Main Gate (NH-1)",                 "zone": 1, "lat": 31.24996, "lng": 75.70035, "tags": ["gate","entrance","main","nh1"] },
+    { "id": "GATE2", "name": "Law Gate Entrance",                "zone": 1, "lat": 31.25350, "lng": 75.69800, "tags": ["gate","law","entrance"] },
+    { "id": "01",    "name": "Block 01 — LIM (Management)",      "zone": 1, "lat": 31.25060, "lng": 75.70090, "tags": ["lim","management","mba"] },
+    { "id": "02",    "name": "Block 02 — Campus Café",           "zone": 1, "lat": 31.25090, "lng": 75.70140, "tags": ["food","cafe","canteen","coffee"] },
+    { "id": "03",    "name": "Block 03 — Auditorium",            "zone": 1, "lat": 31.25120, "lng": 75.70190, "tags": ["auditorium","events","hall"] },
+    { "id": "08",    "name": "Block 08 — Hospital",              "zone": 1, "lat": 31.25270, "lng": 75.70440, "tags": ["hospital","medical","health","doctor","emergency"] },
+    { "id": "13",    "name": "Block 13 — LIT Polytechnic",       "zone": 3, "lat": 31.25460, "lng": 75.70550, "tags": ["polytechnic","lit","diploma"] },
+    { "id": "15",    "name": "Block 15 — Lovely Mall",           "zone": 3, "lat": 31.25520, "lng": 75.70630, "tags": ["mall","shopping","food","store"] },
+    { "id": "20",    "name": "Block 20 — LSB (Business)",        "zone": 4, "lat": 31.25670, "lng": 75.70780, "tags": ["lsb","business","mba","management"] },
+    { "id": "21",    "name": "Block 21 — Central Library",       "zone": 4, "lat": 31.25700, "lng": 75.70820, "tags": ["library","books","study","reading"] },
+    { "id": "27",    "name": "Block 27 — CSE Labs & Classes",    "zone": 5, "lat": 31.25830, "lng": 75.70930, "tags": ["cse","computer","science","labs","coding","it"] },
+    { "id": "32",    "name": "Block 32 — Admissions & Registrar","zone": 5, "lat": 31.25980, "lng": 75.71130, "tags": ["admission","admissions","registrar","office","enquiry","admin"] },
+    { "id": "37",    "name": "Block 37 — Sports Complex",        "zone": 5, "lat": 31.26130, "lng": 75.71330, "tags": ["sports","gym","playground","fitness","ground"] },
+    { "id": "43",    "name": "Block 43 — Boys Hostel 1",         "zone": 2, "lat": 31.25280, "lng": 75.70550, "tags": ["hostel","boys","bh1","accommodation"] },
+    { "id": "55",    "name": "Block 55 — Academic Block 3",      "zone": 6, "lat": 31.26380, "lng": 75.71650, "tags": ["academic","classroom","lecture"] }
+  ]
+}
