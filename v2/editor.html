@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LPU Coord Collector → blocks.json</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c0b; --surface:#141815; --surface-2:#1c211d; --surface-3:#232923;
+    --border:rgba(255,255,255,0.08); --text:#e8ebe4; --text-dim:#8a9085; --text-faint:#5c6157;
+    --orange:#ff6b2c; --orange-bright:#ff8652; --green:#4ade80; --red:#ef4444; --blue:#4a90d9;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif; font-size:14px;
+    display:grid; grid-template-columns:340px 1fr 440px;
+    height:100vh; overflow:hidden;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:-0.01em;margin:0;}
+
+  .sidebar{
+    background:var(--surface); border-right:1px solid var(--border);
+    padding:18px; overflow-y:auto; display:flex; flex-direction:column; gap:14px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+  .brand-mark{
+    width:32px;height:32px;border-radius:8px;background:var(--orange);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;color:#0a0c0b;font-size:15px;
+    box-shadow:0 0 16px rgba(255,107,44,0.35);
+  }
+  .brand-title{font-size:15px;font-weight:700;}
+  .brand-sub{font-size:10.5px;color:var(--text-faint);margin-top:1px;}
+
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);}
+  .field input,.field select,.field textarea{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:9px 11px; font-family:'Inter',sans-serif; font-size:13px;
+    outline:none; transition:border-color .15s; width:100%;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);}
+  .field textarea{resize:vertical;min-height:56px;font-family:monospace;font-size:12px;}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  .btn{
+    background:var(--orange); color:#0a0c0b; border:none; border-radius:8px;
+    padding:10px 14px; font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:12.5px; cursor:pointer; transition:background .15s, border-color .15s, color .15s;
+  }
+  .btn:hover{background:var(--orange-bright);}
+  .btn.ghost{background:var(--surface-3);color:var(--text);border:1px solid var(--border);}
+  .btn.ghost:hover{border-color:var(--orange);color:var(--orange);background:var(--surface-3);}
+  .btn.danger{background:rgba(239,68,68,0.15);color:#ff8c8c;border:1px solid rgba(239,68,68,0.3);}
+  .btn.danger:hover{background:rgba(239,68,68,0.25);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .hint{font-size:11.5px;color:var(--text-faint);line-height:1.5;}
+  .kbd{
+    display:inline-block; background:var(--surface-3); border:1px solid var(--border);
+    padding:1px 6px; border-radius:4px; font-family:monospace; font-size:11px;
+  }
+
+  .progress{background:var(--surface-2); border-radius:8px; height:6px; overflow:hidden; margin-top:4px;}
+  .progress-bar{background:var(--green); height:100%; transition:width .3s; width:0%;}
+  .progress-text{font-size:11px;color:var(--text-dim);margin-top:5px;}
+
+  #map{position:relative; min-height:300px;}
+  .map-hud{
+    position:absolute; top:14px; left:14px; z-index:2;
+    background:rgba(20,24,21,0.92); border:1px solid var(--border);
+    border-radius:10px; padding:10px 14px; font-size:12px; backdrop-filter:blur(8px);
+    display:flex; gap:14px; align-items:center; pointer-events:none;
+  }
+  .map-hud .status{color:var(--green);font-weight:600;}
+  .map-hud .coords{color:var(--text-dim);font-family:monospace;}
+
+  .marker{
+    min-width:26px; height:26px; padding:0 6px; border-radius:999px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:9.5px;
+    color:#0a0c0b; border:2px solid #0a0c0b; cursor:pointer;
+    transition:box-shadow .2s, transform .2s; white-space:nowrap;
+    box-shadow:0 2px 6px rgba(0,0,0,.5);
+  }
+  .marker:hover{transform:scale(1.12);}
+  .marker.active{
+    box-shadow:0 0 0 5px rgba(255,107,44,.35), 0 2px 6px rgba(0,0,0,.5);
+    transform:scale(1.18); z-index:200;
+  }
+
+  .panel{
+    background:var(--surface); border-left:1px solid var(--border);
+    padding:18px; overflow-y:auto; display:flex; flex-direction:column; gap:14px;
+  }
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border);}
+  .panel-head h2{font-size:15px;}
+  .count-pill{
+    background:var(--surface-3); border:1px solid var(--border); border-radius:20px;
+    padding:3px 10px; font-size:11px; color:var(--text-dim); font-family:'Space Grotesk',sans-serif; font-weight:600;
+    white-space:nowrap;
+  }
+
+  .coord-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;padding-right:2px;}
+  .coord-item{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:9px;
+    padding:9px 11px; display:flex; align-items:center; gap:10px; font-size:12px;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .coord-item:hover{border-color:var(--orange);background:var(--surface-3);}
+  .coord-item.active{border-color:var(--orange);background:rgba(255,107,44,0.08);}
+  .coord-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .coord-item .bid{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:10.5px;
+    background:var(--surface-3); color:var(--text); border-radius:5px; padding:2px 7px; flex-shrink:0;
+    border:1px solid var(--border); max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .coord-item.active .bid{background:var(--orange);color:#0a0c0b;border-color:transparent;}
+  .coord-item .binfo{flex:1;min-width:0;}
+  .coord-item .bname{font-weight:600;color:var(--text);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .coord-item .bll{color:var(--text-faint);font-family:monospace;font-size:10.5px;margin-top:2px;}
+  .coord-item .rm{
+    background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:14px;padding:2px 4px;flex-shrink:0;
+  }
+  .coord-item .rm:hover{color:var(--red);}
+
+  .zone-list{display:flex;flex-direction:column;gap:6px;}
+  .zone-row{
+    display:flex;align-items:center;gap:8px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:8px;padding:6px 8px;
+  }
+  .zone-row input[type=color]{
+    width:24px;height:24px;padding:0;border:1px solid var(--border);border-radius:6px;
+    background:transparent;cursor:pointer;flex-shrink:0;
+  }
+  .zone-row input[type=color]::-webkit-color-swatch-wrapper{padding:2px;}
+  .zone-row input[type=color]::-webkit-color-swatch{border:none;border-radius:4px;}
+  .zone-row input[type=text]{
+    flex:1;min-width:0;background:transparent;border:none;color:var(--text);
+    font-size:12px;font-family:'Inter',sans-serif;outline:none;padding:4px 2px;
+  }
+  .zone-row input[type=text]:focus{color:var(--orange);}
+  .zone-row .zcount{
+    font-size:10.5px;color:var(--text-faint);font-family:'Space Grotesk',sans-serif;
+    font-weight:600;flex-shrink:0;
+  }
+  .zone-row .rm{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;}
+  .zone-row .rm:hover{color:var(--red);}
+
+  .output{
+    background:#0d100e; border:1px solid var(--border); border-radius:9px;
+    padding:12px; font-family:'JetBrains Mono','Courier New',monospace; font-size:11px;
+    color:#b8c4b0; max-height:340px; overflow:auto; white-space:pre; line-height:1.55;
+    tab-size:2;
+  }
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar .btn{flex:1;min-width:0;padding:9px 10px;font-size:12px;}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
+    background:var(--orange);color:#0a0c0b;padding:10px 18px;border-radius:9px;
+    font-weight:600;font-size:13px;transition:transform .25s;z-index:1000;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5); pointer-events:none; max-width:80vw; text-align:center;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
+
+  .mode-pill{
+    display:inline-flex;align-items:center;gap:5px;
+    background:var(--surface-3);border:1px solid var(--border);
+    padding:6px 10px;border-radius:20px;font-size:11px;color:var(--text-dim);
+    cursor:pointer; user-select:none;
+  }
+  .mode-pill.on{background:rgba(74,222,128,0.12);border-color:rgba(74,222,128,0.3);color:var(--green);}
+
+  .checkline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);cursor:pointer;user-select:none;}
+  .checkline input{accent-color:var(--orange);width:14px;height:14px;cursor:pointer;}
+
+  @media (max-width:1100px){
+    body{grid-template-columns:1fr;grid-template-rows:auto 1fr auto;overflow:auto;height:auto;}
+    .sidebar,.panel{max-height:none;border:none;border-bottom:1px solid var(--border);}
+    #map{height:420px;}
+    .coord-list{max-height:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LEFT SIDEBAR ===================== -->
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">⌖</div>
+    <div>
+      <div class="brand-title">LPU Coord Collector</div>
+      <div class="brand-sub">Click map → export blocks.json</div>
+    </div>
+  </div>
+
+  <div class="hint">
+    Pick a place, then <b>click the map</b> at its real location, or <b>paste lat,lng</b>.
+    Markers are draggable. Everything auto-saves to your browser.
+  </div>
+
+  <div class="field">
+    <label>Place</label>
+    <select id="place-select"></select>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="new-place">+ New place</button>
+    <button class="btn danger" id="delete-place">Delete place</button>
+  </div>
+
+  <div class="field">
+    <label>Paste lat,lng</label>
+    <textarea id="paste-input" placeholder="31.2540, 75.7065&#10;or&#10;31.2540 75.7065"></textarea>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="apply-paste">Apply to place</button>
+    <button class="btn ghost" id="clear-block">Clear coords</button>
+  </div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Latitude</label>
+      <input id="in-lat" type="number" step="0.000001" placeholder="31.2540">
+    </div>
+    <div class="field">
+      <label>Longitude</label>
+      <input id="in-lng" type="number" step="0.000001" placeholder="75.7065">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>ID</label>
+    <input id="in-id" type="text" placeholder="27 or GATE">
+  </div>
+
+  <div class="field">
+    <label>Name</label>
+    <input id="in-name" type="text" placeholder="Block 27 — CSE Labs &amp; Classes">
+  </div>
+
+  <div class="field">
+    <label>Zone</label>
+    <select id="in-zone"></select>
+  </div>
+
+  <div class="field">
+    <label>Tags (comma separated)</label>
+    <input id="in-tags" type="text" placeholder="cse, computer, labs">
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="save-block">Save coordinates</button>
+  </div>
+
+  <div class="field">
+    <label>Click-on-map mode</label>
+    <div class="mode-pill on" id="mode-pill">● Armed — click map to place</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:6px 0;">
+
+  <div class="field">
+    <label>Progress</label>
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-text" id="progress-text">0 / 0 places placed</div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="import-btn">Import blocks.json</button>
+    <button class="btn ghost" id="load-template">Load defaults</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn danger" id="reset-all">Reset everything</button>
+  </div>
+
+  <input type="file" id="import-file" accept=".json,.js,.txt" style="display:none">
+</div>
+
+<!-- ===================== MAP ===================== -->
+<div id="map">
+  <div class="map-hud">
+    <div>Click anywhere → places pin for selected place</div>
+    <div class="coords" id="hud-coords">—</div>
+  </div>
+</div>
+
+<!-- ===================== RIGHT PANEL ===================== -->
+<div class="panel">
+  <div class="panel-head">
+    <h2>Places</h2>
+    <span class="count-pill" id="count-pill">0 placed</span>
+  </div>
+
+  <div class="coord-list" id="coord-list"></div>
+
+  <div class="panel-head" style="padding-top:6px;">
+    <h2>Zones</h2>
+    <button class="btn ghost" id="add-zone" style="padding:4px 10px;font-size:11px;flex:0 0 auto;">+ Zone</button>
+  </div>
+  <div class="zone-list" id="zone-list"></div>
+
+  <div class="panel-head" style="padding-top:6px;">
+    <h2>Generated blocks.json</h2>
+    <span class="count-pill">Live</span>
+  </div>
+
+  <div class="output" id="output">// Coordinates will appear here as you place them.</div>
+
+  <label class="checkline">
+    <input type="checkbox" id="include-unplaced">
+    Include unplaced places (lat/lng: null)
+  </label>
+
+  <div class="toolbar">
+    <button class="btn" id="copy-btn">📋 Copy JSON</button>
+    <button class="btn ghost" id="download-btn">⬇ Download</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="recenter-btn">◎ Auto-center from pins</button>
+    <button class="btn ghost" id="center-map-btn">⌖ Center = map view</button>
+  </div>
+
+  <div class="hint">
+    Save the downloaded file as <span class="kbd">blocks.json</span> next to your page and reload.
+    Zone <b>id</b>s are referenced by each place's <span class="kbd">zone</span> field.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
+<script>
+/* =============================================================
+   LPU COORD COLLECTOR  →  blocks.json exporter
+   Preloaded with: Main Gate · 13 · 14 · 15 · 25–38
+   ============================================================= */
+
+const README = "Edit this file to add, remove, or modify campus blocks. Reload the page to see changes. Fields: id (short label like '27' or 'GATE'), name (full label), zone (must match an id in 'zones'), lat & lng (real coordinates), tags (search keywords).";
+
+/* -------- Default dataset (Main Gate + 13/14/15 + 25–38) -------- */
+const DEFAULT_DATA = {
+  center: [31.2535, 75.7055],
+  zoom: 16,
+  zones: [
+    { id: 1, name: "Zone 1 — Main Entrance",      color: "#d97706" },
+    { id: 2, name: "Zone 2 — LIT & Commerce",     color: "#16a34a" },
+    { id: 3, name: "Zone 3 — Engineering Core",   color: "#dc2626" },
+    { id: 4, name: "Zone 4 — Admin & Chancellor", color: "#9333ea" }
+  ],
+  places: [
+    /* ---- Main gate ---- */
+    { id:"GATE", name:"Main Gate (NH-1)",                  zone:1, lat:31.24996, lng:75.70035, tags:["gate","entrance","main","nh1"] },
+
+    /* ---- 13 · 14 · 15 ---- */
+    { id:"13",   name:"Block 13 — LIT Polytechnic",        zone:2, lat:31.25180, lng:75.70450, tags:["polytechnic","lit","diploma"] },
+    { id:"14",   name:"Block 14 — Business Block",         zone:2, lat:31.25120, lng:75.70480, tags:["business","commerce","mba","management"] },
+    { id:"15",   name:"Block 15 — Lovely Mall",            zone:2, lat:31.25240, lng:75.70520, tags:["mall","shopping","food","store"] },
+
+    /* ---- 25–29 Engineering ---- */
+    { id:"25",   name:"Block 25 — Engineering",            zone:3, lat:31.25450, lng:75.70520, tags:["engineering"] },
+    { id:"26",   name:"Block 26 — Engineering",            zone:3, lat:31.25480, lng:75.70560, tags:["engineering"] },
+    { id:"27",   name:"Block 27 — CSE Labs & Classes",     zone:3, lat:31.25500, lng:75.70600, tags:["cse","computer","science","labs","coding","it"] },
+    { id:"28",   name:"Block 28 — Engineering",            zone:3, lat:31.25520, lng:75.70640, tags:["engineering"] },
+    { id:"29",   name:"Block 29 — Engineering",            zone:3, lat:31.25540, lng:75.70680, tags:["engineering"] },
+
+    /* ---- 30–32 Admin ---- */
+    { id:"30",   name:"Block 30 — Chancellor Office",      zone:4, lat:31.25560, lng:75.70720, tags:["chancellor","office","admin"] },
+    { id:"31",   name:"Block 31 — Administrative Block",   zone:4, lat:31.25520, lng:75.70760, tags:["admin","administration","office"] },
+    { id:"32",   name:"Block 32 — Admissions & Registrar", zone:4, lat:31.25480, lng:75.70790, tags:["admission","admissions","registrar","office","enquiry","admin"] },
+
+    /* ---- 33–38 Engineering ---- */
+    { id:"33",   name:"Block 33 — Engineering",            zone:3, lat:31.25440, lng:75.70680, tags:["engineering"] },
+    { id:"34",   name:"Block 34 — Engineering",            zone:3, lat:31.25400, lng:75.70650, tags:["engineering"] },
+    { id:"35",   name:"Block 35 — Engineering",            zone:3, lat:31.25370, lng:75.70620, tags:["engineering"] },
+    { id:"36",   name:"Block 36 — Engineering",            zone:3, lat:31.25340, lng:75.70650, tags:["engineering"] },
+    { id:"37",   name:"Block 37 — Sports Complex",         zone:3, lat:31.25310, lng:75.70680, tags:["sports","gym","playground","fitness","ground"] },
+    { id:"38",   name:"Block 38 — Engineering",            zone:3, lat:31.25280, lng:75.70710, tags:["engineering"] }
+  ]
+};
+
+const STORAGE_KEY = "lpu-blocks-collector-v2";
+const ZONE_PALETTE = ["#d97706","#2563eb","#16a34a","#9333ea","#dc2626","#0891b2",
+                      "#db2777","#65a30d","#7c3aed","#0d9488","#ea580c","#475569"];
+
+/* -------- State -------- */
+let state = loadState();
+
+function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw){
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.places) && Array.isArray(parsed.zones)){
+        return parsed;
+      }
+    }
+  }catch(e){}
+  const seed = deepCopy(DEFAULT_DATA);
+  seed.current = seed.places[0] ? seed.places[0].id : null;
+  seed.includeUnplaced = false;
+  return seed;
+}
+
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+/* -------- Helpers -------- */
+function hasCoord(p){ return p && Number.isFinite(p.lat) && Number.isFinite(p.lng); }
+function zoneById(id){ return state.zones.find(z => Number(z.id) === Number(id)); }
+function zoneColor(id){ const z = zoneById(id); return z ? z.color : "#8a9085"; }
+function zoneName(id){ const z = zoneById(id); return z ? z.name : "—"; }
+function getCurrent(){ return state.places.find(p => p.id === state.current) || null; }
+function fmtNum(v){
+  if (v === null || v === undefined || isNaN(v)) return "null";
+  return String(Number(Number(v).toFixed(6)));
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* -------- Map setup -------- */
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center: [state.center[1], state.center[0]],
+  zoom: state.zoom,
+  pitch: 0,
+  bearing: 0
+});
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+map.addControl(new maplibregl.ScaleControl({ unit:'metric' }), 'bottom-left');
+
+let clickMode = true;
+const placeMarkers = new Map();
+
+/* -------- DOM refs -------- */
+const placeSelect = document.getElementById('place-select');
+const zoneSelect  = document.getElementById('in-zone');
+const outputEl    = document.getElementById('output');
+
+/* =============================================================
+   RENDERERS
+   ============================================================= */
+
+function renderPlaceSelect(){
+  const prev = state.current;
+  placeSelect.innerHTML = '';
+  state.places
+    .slice()
+    .sort((a,b) => String(a.id).localeCompare(String(b.id), undefined, {numeric:true}))
+    .forEach(p => {
+      const mark = hasCoord(p) ? '' : ' · ⌀';
+      placeSelect.add(new Option(`${p.id} — ${p.name}${mark}`, p.id));
+    });
+  if (prev && state.places.some(p => p.id === prev)) placeSelect.value = prev;
+  else if (state.places[0]) { state.current = state.places[0].id; placeSelect.value = state.current; }
+  else state.current = null;
+}
+
+function renderZoneSelect(){
+  const prev = zoneSelect.value;
+  zoneSelect.innerHTML = '';
+  state.zones.forEach(z => zoneSelect.add(new Option(z.name, String(z.id))));
+  const cur = getCurrent();
+  if (cur) zoneSelect.value = String(cur.zone);
+  else if (prev) zoneSelect.value = prev;
+}
+
+function renderZoneList(){
+  const wrap = document.getElementById('zone-list');
+  if (!state.zones.length){
+    wrap.innerHTML = `<div class="hint" style="text-align:center;padding:10px 0;">No zones yet — add one.</div>`;
+    return;
+  }
+  wrap.innerHTML = state.zones.map(z => {
+    const count = state.places.filter(p => Number(p.zone) === Number(z.id)).length;
+    return `<div class="zone-row" data-zone="${z.id}">
+      <input type="color" class="zcolor" value="${z.color}" title="Zone colour">
+      <input type="text" class="zname" value="${esc(z.name)}" title="Zone name">
+      <span class="zcount">${count}</span>
+      <button class="rm" title="Remove zone">✕</button>
+    </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('.zone-row').forEach(row => {
+    const zid = Number(row.dataset.zone);
+    const z = zoneById(zid);
+    if (!z) return;
+
+    row.querySelector('.zcolor').addEventListener('input', e => {
+      z.color = e.target.value;
+      saveState(); renderMarkers(); renderList(); renderOutput();
+    });
+    row.querySelector('.zname').addEventListener('input', e => {
+      z.name = e.target.value;
+      saveState(); renderZoneSelect(); renderOutput(); renderMarkers();
+    });
+    row.querySelector('.rm').addEventListener('click', () => {
+      if (state.zones.length <= 1){ toast('Keep at least one zone'); return; }
+      const used = state.places.filter(p => Number(p.zone) === zid).length;
+      if (used && !confirm(`${used} place(s) use this zone. Move them to the first remaining zone?`)) return;
+      const fallback = state.zones.find(x => x.id !== zid).id;
+      state.places.forEach(p => { if (Number(p.zone) === zid) p.zone = fallback; });
+      state.zones = state.zones.filter(x => x.id !== zid);
+      saveState(); renderZoneList(); renderZoneSelect(); renderMarkers(); renderList(); renderOutput();
+      toast('Zone removed');
+    });
+  });
+}
+
+function syncInputsFromState(){
+  const p = getCurrent();
+  if (!p){
+    ['in-id','in-name','in-lat','in-lng','in-tags'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('paste-input').value = '';
+    return;
+  }
+  document.getElementById('in-id').value   = p.id;
+  document.getElementById('in-name').value = p.name;
+  document.getElementById('in-zone').value = String(p.zone);
+  document.getElementById('in-tags').value = (p.tags || []).join(', ');
+  document.getElementById('in-lat').value  = hasCoord(p) ? p.lat : '';
+  document.getElementById('in-lng').value  = hasCoord(p) ? p.lng : '';
+}
+
+function renderMarkers(){
+  placeMarkers.forEach(m => m.remove());
+  placeMarkers.clear();
+
+  state.places.forEach(p => {
+    if (!hasCoord(p)) return;
+    const color = zoneColor(p.zone);
+    const el = document.createElement('div');
+    el.className = 'marker' + (p.id === state.current ? ' active' : '');
+    el.style.background = color;
+    el.textContent = p.id;
+
+    const marker = new maplibregl.Marker({ element: el, draggable: true })
+      .setLngLat([p.lng, p.lat])
+      .setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(
+        `<div style="font-family:'Inter',sans-serif;color:#e8ebe4;min-width:150px">
+          <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;color:${color}">${esc(p.id)}</div>
+          <div style="font-weight:600;margin-top:2px">${esc(p.name)}</div>
+          <div style="font-size:11px;color:#8a9085;margin-top:2px">${esc(zoneName(p.zone))}</div>
+          <div style="font-size:11px;color:#8a9085;margin-top:4px;font-family:monospace">
+            ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}
+          </div>
+        </div>`
+      ))
+      .addTo(map);
+
+    el.addEventListener('click', ev => {
+      ev.stopPropagation();
+      selectPlace(p.id, false);
+    });
+
+    marker.on('dragend', () => {
+      const ll = marker.getLngLat();
+      p.lat = ll.lat; p.lng = ll.lng;
+      saveState();
+      if (p.id === state.current){
+        document.getElementById('in-lat').value = ll.lat.toFixed(6);
+        document.getElementById('in-lng').value = ll.lng.toFixed(6);
+      }
+      renderList(); renderOutput(); updateProgress();
+      toast(`Moved ${p.id} → ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`);
+    });
+
+    placeMarkers.set(p.id, marker);
+  });
+}
+
+function renderList(){
+  const list = document.getElementById('coord-list');
+  const sorted = state.places.slice().sort(
+    (a,b) => String(a.id).localeCompare(String(b.id), undefined, {numeric:true})
+  );
+
+  if (!sorted.length){
+    list.innerHTML = `<div class="hint" style="text-align:center;padding:20px 0;">No places yet. Click “+ New place”.</div>`;
+    document.getElementById('count-pill').textContent = '0 places';
+    return;
+  }
+
+  list.innerHTML = sorted.map(p => {
+    const active = p.id === state.current ? ' active' : '';
+    const ll = hasCoord(p)
+      ? `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`
+      : '<span style="color:#5c6157">not placed — click map</span>';
+    return `<div class="coord-item${active}" data-id="${esc(p.id)}">
+      <span class="dot" style="background:${zoneColor(p.zone)}"></span>
+      <span class="bid">${esc(p.id)}</span>
+      <div class="binfo">
+        <div class="bname">${esc(p.name)}</div>
+        <div class="bll">${ll}</div>
+      </div>
+      <button class="rm" data-rm="${esc(p.id)}" title="Delete place">✕</button>
+    </div>`;
+  }).join('');
+
+  const placed = sorted.filter(hasCoord).length;
+  document.getElementById('count-pill').textContent = `${placed} / ${sorted.length} placed`;
+
+  list.querySelectorAll('.coord-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('rm')) return;
+      selectPlace(el.dataset.id, true);
+    });
+  });
+  list.querySelectorAll('.rm').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      removePlace(btn.dataset.rm);
+    });
+  });
+}
+
+/* -------- Output builder (blocks.json shape) -------- */
+function buildOutput(){
+  const includeUnplaced = document.getElementById('include-unplaced').checked;
+  const places = state.places
+    .filter(p => includeUnplaced || hasCoord(p))
+    .slice()
+    .sort((a,b) => String(a.id).localeCompare(String(b.id), undefined, {numeric:true}));
+
+  const L = [];
+  L.push('{');
+  L.push('  "_readme": ' + JSON.stringify(README) + ',');
+  L.push('');
+  L.push('  "center": [' + fmtNum(state.center[0]) + ', ' + fmtNum(state.center[1]) + '],');
+  L.push('  "zoom": ' + Number(state.zoom) + ',');
+  L.push('');
+  L.push('  "zones": [');
+  state.zones.forEach((z, i) => {
+    L.push('    { "id": ' + Number(z.id) +
+           ', "name": ' + JSON.stringify(z.name) +
+           ', "color": ' + JSON.stringify(z.color) + ' }' +
+           (i < state.zones.length - 1 ? ',' : ''));
+  });
+  L.push('  ],');
+  L.push('');
+  L.push('  "places": [');
+  if (!places.length){
+    L.push('  ],');
+    L.push('  "_note": "No coordinates placed yet."');
+    L.push('}');
+    return L.join('\n');
+  }
+  places.forEach((p, i) => {
+    const lat = hasCoord(p) ? fmtNum(p.lat) : 'null';
+    const lng = hasCoord(p) ? fmtNum(p.lng) : 'null';
+    const tags = (p.tags || []).map(t => JSON.stringify(t)).join(', ');
+    L.push('    { ' + [
+      '"id": '    + JSON.stringify(p.id),
+      '"name": '  + JSON.stringify(p.name),
+      '"zone": '  + Number(p.zone),
+      '"lat": '   + lat,
+      '"lng": '   + lng,
+      '"tags": [' + tags + ']'
+    ].join(', ') + ' }' + (i < places.length - 1 ? ',' : ''));
+  });
+  L.push('  ]');
+  L.push('}');
+  return L.join('\n');
+}
+
+function renderOutput(){
+  outputEl.textContent = buildOutput();
+}
+
+function updateProgress(){
+  const total = state.places.length;
+  const placed = state.places.filter(hasCoord).length;
+  const pct = total ? Math.round(placed / total * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${placed} / ${total} places placed (${pct}%)`;
+}
+
+function updateHud(lat, lng){
+  document.getElementById('hud-coords').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+}
+
+/* =============================================================
+   ACTIONS
+   ============================================================= */
+
+function selectPlace(id, fly){
+  if (!state.places.some(p => p.id === id)) return;
+  state.current = id;
+  saveState();
+  placeSelect.value = id;
+  syncInputsFromState();
+  renderZoneSelect();
+  renderMarkers();
+  renderList();
+  const p = getCurrent();
+  if (fly && hasCoord(p)) map.flyTo({ center:[p.lng, p.lat], zoom:17, duration:800 });
+}
+
+function placeCoord(id, lat, lng){
+  const p = state.places.find(x => x.id === id);
+  if (!p) return;
+  p.lat = lat; p.lng = lng;
+  saveState();
+  renderMarkers(); renderList(); renderOutput(); updateProgress();
+  updateHud(lat, lng);
+}
+
+function removePlace(id){
+  const p = state.places.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Delete place "${p.id} — ${p.name}"?`)) return;
+  state.places = state.places.filter(x => x.id !== id);
+  if (state.current === id){
+    state.current = state.places[0] ? state.places[0].id : null;
+  }
+  saveState();
+  renderPlaceSelect(); renderZoneSelect(); renderZoneList();
+  renderMarkers(); renderList(); renderOutput(); updateProgress();
+  syncInputsFromState();
+  toast(`Deleted ${id}`);
+}
+
+/* =============================================================
+   MAP EVENTS
+   ============================================================= */
+
+map.on('click', e => {
+  if (!clickMode) return;
+  const p = getCurrent();
+  if (!p){ toast('No place selected'); return; }
+  const lat = e.lngLat.lat, lng = e.lngLat.lng;
+  placeCoord(p.id, lat, lng);
+  document.getElementById('in-lat').value = lat.toFixed(6);
+  document.getElementById('in-lng').value = lng.toFixed(6);
+  toast(`${p.id} placed at ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+});
+
+map.on('mousemove', e => updateHud(e.lngLat.lat, e.lngLat.lng));
+
+/* =============================================================
+   SIDEBAR EVENTS
+   ============================================================= */
+
+placeSelect.addEventListener('change', () => selectPlace(placeSelect.value, true));
+
+document.getElementById('in-name').addEventListener('input', e => {
+  const p = getCurrent(); if (!p) return;
+  p.name = e.target.value;
+  saveState(); renderList(); renderOutput(); renderPlaceSelect();
+  placeSelect.value = p.id;
+});
+
+document.getElementById('in-tags').addEventListener('input', e => {
+  const p = getCurrent(); if (!p) return;
+  p.tags = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+  saveState(); renderOutput();
+});
+
+document.getElementById('in-zone').addEventListener('change', e => {
+  const p = getCurrent(); if (!p) return;
+  p.zone = Number(e.target.value);
+  saveState(); renderMarkers(); renderList(); renderZoneList(); renderOutput();
+});
+
+document.getElementById('in-id').addEventListener('change', e => {
+  const p = getCurrent(); if (!p) return;
+  const newId = e.target.value.trim();
+  if (!newId){ e.target.value = p.id; return; }
+  if (newId !== p.id && state.places.some(x => x.id === newId)){
+    toast(`ID "${newId}" already exists`);
+    e.target.value = p.id;
+    return;
+  }
+  const oldId = p.id;
+  p.id = newId;
+  if (state.current === oldId) state.current = newId;
+  saveState();
+  renderPlaceSelect(); placeSelect.value = newId;
+  renderMarkers(); renderList(); renderOutput();
+  toast(`Renamed ${oldId} → ${newId}`);
+});
+
+document.getElementById('apply-paste').addEventListener('click', () => {
+  const p = getCurrent(); if (!p){ toast('No place selected'); return; }
+  const raw = document.getElementById('paste-input').value.trim();
+  if (!raw){ toast('Paste something first'); return; }
+  const parsed = parseLatLng(raw);
+  if (!parsed){ toast('Could not parse — try "31.2540, 75.7065"'); return; }
+  placeCoord(p.id, parsed[0], parsed[1]);
+  document.getElementById('in-lat').value = parsed[0].toFixed(6);
+  document.getElementById('in-lng').value = parsed[1].toFixed(6);
+  document.getElementById('paste-input').value = '';
+  map.flyTo({ center:[parsed[1], parsed[0]], zoom:17, duration:800 });
+  toast(`Applied to ${p.id}`);
+});
+
+function parseLatLng(str){
+  const cleaned = str.replace(/[\[\](){}]/g, ' ').trim();
+  const nums = cleaned.match(/-?\d+(\.\d+)?/g);
+  if (!nums || nums.length < 2) return null;
+  const lat = parseFloat(nums[0]);
+  const lng = parseFloat(nums[1]);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return [lat, lng];
+}
+
+document.getElementById('save-block').addEventListener('click', () => {
+  const p = getCurrent(); if (!p){ toast('No place selected'); return; }
+  const lat = parseFloat(document.getElementById('in-lat').value);
+  const lng = parseFloat(document.getElementById('in-lng').value);
+  if (isNaN(lat) || isNaN(lng)){ toast('Invalid lat/lng'); return; }
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180){ toast('Out of range'); return; }
+  placeCoord(p.id, lat, lng);
+  map.flyTo({ center:[lng, lat], zoom:17, duration:800 });
+  toast(`Saved ${p.id}`);
+});
+
+document.getElementById('clear-block').addEventListener('click', () => {
+  const p = getCurrent(); if (!p) return;
+  p.lat = null; p.lng = null;
+  saveState();
+  renderMarkers(); renderList(); renderOutput(); updateProgress();
+  syncInputsFromState();
+  toast(`Cleared coords for ${p.id}`);
+});
+
+document.getElementById('new-place').addEventListener('click', () => {
+  let n = 1;
+  while (state.places.some(p => p.id === 'NEW' + n)) n++;
+  const id = 'NEW' + n;
+  const p = {
+    id,
+    name: 'New place',
+    zone: state.zones[0] ? state.zones[0].id : 1,
+    lat: null, lng: null,
+    tags: []
+  };
+  state.places.push(p);
+  state.current = id;
+  saveState();
+  renderPlaceSelect(); placeSelect.value = id;
+  renderZoneSelect(); renderZoneList();
+  renderMarkers(); renderList(); renderOutput(); updateProgress();
+  syncInputsFromState();
+  document.getElementById('in-name').focus();
+  document.getElementById('in-name').select();
+  toast(`Added ${id}`);
+});
+
+document.getElementById('delete-place').addEventListener('click', () => {
+  const p = getCurrent(); if (!p){ toast('No place selected'); return; }
+  removePlace(p.id);
+});
+
+document.getElementById('add-zone').addEventListener('click', () => {
+  const nextId = state.zones.reduce((m, z) => Math.max(m, Number(z.id)), 0) + 1;
+  const color = ZONE_PALETTE[(nextId - 1) % ZONE_PALETTE.length];
+  state.zones.push({ id: nextId, name: `Zone ${nextId} — New Zone`, color });
+  saveState();
+  renderZoneList(); renderZoneSelect(); renderOutput();
+  toast(`Zone ${nextId} added`);
+});
+
+document.getElementById('mode-pill').addEventListener('click', () => {
+  clickMode = !clickMode;
+  updateModePill();
+});
+
+document.getElementById('include-unplaced').addEventListener('change', e => {
+  state.includeUnplaced = e.target.checked;
+  saveState();
+  renderOutput();
+});
+
+document.getElementById('reset-all').addEventListener('click', () => {
+  if (!confirm('Reset everything to the default blocks.json data? This cannot be undone.')) return;
+  state = deepCopy(DEFAULT_DATA);
+  state.current = state.places[0].id;
+  state.includeUnplaced = false;
+  document.getElementById('include-unplaced').checked = false;
+  saveState();
+  fullRefresh();
+  map.jumpTo({ center:[state.center[1], state.center[0]], zoom: state.zoom });
+  toast('Reset to defaults');
+});
+
+document.getElementById('load-template').addEventListener('click', () => {
+  if (!confirm('Overwrite current places & zones with the default blocks.json data?')) return;
+  state.places = deepCopy(DEFAULT_DATA.places);
+  state.zones  = deepCopy(DEFAULT_DATA.zones);
+  state.center = deepCopy(DEFAULT_DATA.center);
+  state.zoom   = DEFAULT_DATA.zoom;
+  state.current = state.places[0].id;
+  saveState();
+  fullRefresh();
+  map.jumpTo({ center:[state.center[1], state.center[0]], zoom: state.zoom });
+  toast('Defaults loaded');
+});
+
+document.getElementById('copy-btn').addEventListener('click', async () => {
+  const text = outputEl.textContent;
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('Copied blocks.json to clipboard!');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('Copied!');
+  }
+});
+
+document.getElementById('download-btn').addEventListener('click', () => {
+  const text = outputEl.textContent;
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'blocks.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Downloaded blocks.json');
+});
+
+document.getElementById('recenter-btn').addEventListener('click', () => {
+  const pts = state.places.filter(hasCoord);
+  if (!pts.length){ toast('No placed pins yet'); return; }
+  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+  state.center = [Number(lat.toFixed(6)), Number(lng.toFixed(6))];
+  saveState(); renderOutput();
+  map.flyTo({ center:[lng, lat], zoom: state.zoom, duration:800 });
+  toast(`Center → ${state.center[0]}, ${state.center[1]}`);
+});
+
+document.getElementById('center-map-btn').addEventListener('click', () => {
+  const c = map.getCenter();
+  state.center = [Number(c.lat.toFixed(6)), Number(c.lng.toFixed(6))];
+  state.zoom = Number(map.getZoom().toFixed(2));
+  saveState(); renderOutput();
+  toast(`Center set from map view (zoom ${state.zoom})`);
+});
+
+/* =============================================================
+   IMPORT
+   ============================================================= */
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-file').click();
+});
+
+document.getElementById('import-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result);
+
+    let obj = null;
+    try { obj = JSON.parse(text); } catch(err){}
+
+    if (obj && Array.isArray(obj.places)){
+      if (!confirm(`Import ${obj.places.length} places from "${file.name}"? This replaces current data.`)) return;
+      if (Array.isArray(obj.zones) && obj.zones.length){
+        state.zones = obj.zones.map(z => ({
+          id: Number(z.id),
+          name: String(z.name || `Zone ${z.id}`),
+          color: /^#[0-9a-f]{3,8}$/i.test(z.color || '') ? z.color : '#888888'
+        }));
+      }
+      state.places = obj.places.map(normalizePlace);
+      if (Array.isArray(obj.center) && obj.center.length === 2) state.center = obj.center.map(Number);
+      if (typeof obj.zoom === 'number') state.zoom = obj.zoom;
+      state.current = state.places[0] ? state.places[0].id : null;
+      saveState();
+      fullRefresh();
+      map.jumpTo({ center:[state.center[1], state.center[0]], zoom: state.zoom });
+      toast(`Imported ${state.places.length} places`);
+      return;
+    }
+
+    const coords = parseCoordsJs(text);
+    const keys = Object.keys(coords);
+    if (keys.length){
+      let merged = 0, added = 0;
+      keys.forEach(id => {
+        const c = coords[id];
+        const existing = state.places.find(p => p.id === id);
+        if (existing){ existing.lat = c[0]; existing.lng = c[1]; merged++; }
+        else {
+          state.places.push({
+            id,
+            name: `Block ${id}`,
+            zone: state.zones[0] ? state.zones[0].id : 1,
+            lat: c[0], lng: c[1],
+            tags: []
+          });
+          added++;
+        }
+      });
+      saveState();
+      fullRefresh();
+      toast(`Merged ${merged} coords, added ${added} new places`);
+      return;
+    }
+
+    toast('Could not parse that file');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function normalizePlace(p){
+  return {
+    id: String(p.id),
+    name: String(p.name || `Block ${p.id}`),
+    zone: Number(p.zone) || (state.zones[0] ? state.zones[0].id : 1),
+    lat: (p.lat === null || p.lat === undefined || p.lat === '') ? null : Number(p.lat),
+    lng: (p.lng === null || p.lng === undefined || p.lng === '') ? null : Number(p.lng),
+    tags: Array.isArray(p.tags) ? p.tags.map(String) : []
+  };
+}
+
+function parseCoordsJs(text){
+  const result = {};
+  const regex = /["']?([A-Za-z0-9_-]{1,12})["']?\s*:\s*\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]/g;
+  let m;
+  while ((m = regex.exec(text)) !== null){
+    const id = /^\d+$/.test(m[1]) ? m[1].padStart(2, '0') : m[1];
+    result[id] = [parseFloat(m[2]), parseFloat(m[3])];
+  }
+  return result;
+}
+
+/* =============================================================
+   MISC
+   ============================================================= */
+let toastTimer;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+function updateModePill(){
+  const pill = document.getElementById('mode-pill');
+  pill.classList.toggle('on', clickMode);
+  pill.textContent = clickMode ? '● Armed — click map to place' : '○ Disarmed — click map is off';
+}
+
+function fullRefresh(){
+  renderPlaceSelect();
+  renderZoneSelect();
+  renderZoneList();
+  syncInputsFromState();
+  renderMarkers();
+  renderList();
+  renderOutput();
+  updateProgress();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.key === 'Escape'){ clickMode = !clickMode; updateModePill(); }
+});
+
+map.on('load', () => {
+  document.getElementById('include-unplaced').checked = !!state.includeUnplaced;
+  fullRefresh();
+  const p = getCurrent();
+  if (hasCoord(p)) map.jumpTo({ center:[p.lng, p.lat], zoom:17 });
+});
+</script>
+</body>
+</html>
